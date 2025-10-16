@@ -1,6 +1,7 @@
 { pkgs
 , config
 , lib
+, nixosModuleImported
 , ...
 }:
 
@@ -12,6 +13,7 @@ let
     any
     hasInfix
     attrValues
+    filterAttrs
     ;
 
   inherit (types)
@@ -23,6 +25,9 @@ let
   inherit (config) home;
 
   cfg = config.home.persistence;
+
+  enabledPersistencePaths = 
+    filterAttrs (_: v: v.enable) cfg;
 
   persistentStoragePaths = catAttrs "persistentStoragePath" (attrValues cfg);
 in
@@ -40,35 +45,37 @@ in
               user = home.username;
               homeDir = home.homeDirectory;
 
-              # Home Manager doesn't seem to know about the user's group,
-              # so we default it to null here and fill it in in the NixOS
-              # module instead
-              group = null;
-            }
-          ));
-      };
-      home._nixosModuleImported = mkOption {
-        default = false;
-        type = bool;
-        internal = true;
-        description = ''
-          Internal option to signal whether the NixOS persistence
-          module was properly imported. Do not set this!
-        '';
-      };
-    };
+          # Home Manager doesn't seem to know about the user's group,
+          # so we default it to null here and fill it in in the NixOS
+          # module instead
+          group = null;
+        }
+      ));
+  };
   config = {
-    assertions = [
+    _module.args = {
+      nixosModuleImported = false;
+    };
+    assertions = lib.mkIf (enabledPersistencePaths != { }) [
       {
         assertion = config.home._nixosModuleImported;
         message = ''
           home.persistence: Module was imported manually!
 
-            The Home Manager persistence module should not be imported
-            manually. It will be imported by the NixOS module
-            automatically. See
-            https://github.com/nix-community/impermanence?tab=readme-ov-file#home-manager
-            for instructions and examples.
+            Home Manager has to be imported as a module in your NixOS
+            configuration for the persistence module to work properly. See
+            https://nix-community.github.io/home-manager/#sec-install-nixos-module
+            for instructions.
+        '';
+      }
+      {
+        assertion = nixosModuleImported;
+        message = ''
+          home.persistence: NixOS persistence module missing!
+
+            The Home Manager module requires the NixOS module to work properly. See
+            https://github.com/nix-community/impermanence?tab=readme-ov-file#nixos
+            for instructions.
         '';
       }
       {
