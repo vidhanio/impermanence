@@ -283,7 +283,7 @@ in
 
             systemd.mounts =
               let
-                mkBindMount = { dirPath, persistentStoragePath, hideMount, ... }: {
+                mkBindMount = { dirPath, persistentStoragePath, hideMount, allowTrash, ... }: {
                   wantedBy = [ "local-fs.target" ];
                   before = [ "local-fs.target" ];
                   where = concatPaths [ "/" dirPath ];
@@ -294,6 +294,8 @@ in
                     "bind"
                   ] ++ optionals hideMount [
                     "x-gvfs-hide"
+                  ] ++ optionals allowTrash [
+                    "x-gvfs-trash"
                   ]);
                 };
               in
